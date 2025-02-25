@@ -107,3 +107,4 @@ def getMorePlayedTraits(gameName,tagLine): #最終function讓discordbot直接獲
     playersTraits = organizeTraits(playersName,allTraits)
     morePlayed = countPlayersTraits(playersTraits)
     return morePlayed
+ #
