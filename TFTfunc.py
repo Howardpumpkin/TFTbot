@@ -1,4 +1,5 @@
 import requests
+from collections import Counter
 from jsonFileHandle import dumpJsonFile,readJsonFile
 
 class RiotAPI: #所有種類api的類別
@@ -47,9 +48,6 @@ def getKey(keyword): #從Keys文件讀取金鑰或token
                 return line[pos + len(key):].strip()
 
 rClient = RiotAPI(getKey("APIKey"))
-gameName = "PUMPKIN"
-tagLine = 1217
-puuid = rClient.getPuuid(gameName,tagLine)
 
 def getAllPlayerHistory(puuid): #取當前對戰中每名玩家前五場對戰id 返回玩家名單,玩家puuid,玩家歷史matchid
     matchData = rClient.getTFTMatch(rClient.getTFTMatchid(puuid,0,1)[0])
@@ -61,13 +59,11 @@ def getAllPlayerHistory(puuid): #取當前對戰中每名玩家前五場對戰id
         playersPuuid.append(participant["puuid"])
         playersName.append(participant["riotIdGameName"])
     for puuid in playersPuuid: #根據每名玩家puuid取得matchid
-        allMatchid.append(rClient.getTFTMatchid(puuid,1,5))
+        allMatchid.append(rClient.getTFTMatchid(puuid,0,5))
     return playersPuuid,playersName,allMatchid
 
-playersPuuid,playersName,allMatchid = getAllPlayerHistory(puuid)
-
 def getTraits(playersPuuid,allMatchid): #取出所有玩家前五場遊玩的羈絆
-    AllTraits = []
+    allTraits = []
     SingleTraitsTemp = []
     for pCount in range(8):
         for matchid in allMatchid[pCount]:
@@ -75,10 +71,39 @@ def getTraits(playersPuuid,allMatchid): #取出所有玩家前五場遊玩的羈
             for participant in matchData.get("info").get("participants"):
                 if participant["puuid"] == playersPuuid[pCount]:
                     SingleTraitsTemp.append(participant["traits"])
-        AllTraits.append(SingleTraitsTemp)
+        allTraits.append(SingleTraitsTemp)
         SingleTraitsTemp = []
-    return AllTraits
+    return allTraits
 
-AllTraits = getTraits(playersPuuid,allMatchid)
+def organizeTraits(playersName,allTraits): #將所有玩家的名稱與遊玩過的羈絆變成一個字典
+    singleTraitsTemp = []
+    traitsTemp = []
+    playersTraits = {}
+    for i,singleTraits in enumerate(allTraits):
+        for traits in singleTraits:
+            for trait in traits:
+                if trait.get("style") >= 2:
+                    traitsTemp.append(trait.get("name"))
+            singleTraitsTemp.append(traitsTemp)
+            traitsTemp = []
+        playersTraits[playersName[i]] = singleTraitsTemp
+        singleTraitsTemp = []
+    return playersTraits
 
-def organizeTraits(ALLTraits): #整理羈絆資料並返回->[玩家名稱：[場次：(數量)羈絆,...],...]
+def countPlayersTraits(playersTraits): #計算所有玩家的各羈絆遊玩次數，取出較突出的數值
+    morePlayed = {}
+    for player, matches in playersTraits.items():
+        traits = [trait for match in matches for trait in match if trait.startswith("TFT")]
+        trait_counts = Counter(traits)
+        duplicates = {trait: count for trait, count in trait_counts.items() if count > 2}
+        if duplicates:
+            morePlayed[player] = duplicates
+    return morePlayed
+
+def getMorePlayedTraits(gameName,tagLine): #最終function讓discordbot直接獲得玩家玩比較多的羈絆資料
+    puuid = rClient.getPuuid(gameName,tagLine)
+    playersPuuid,playersName,allMatchid = getAllPlayerHistory(puuid)
+    allTraits = getTraits(playersPuuid,allMatchid)
+    playersTraits = organizeTraits(playersName,allTraits)
+    morePlayed = countPlayersTraits(playersTraits)
+    return morePlayed
