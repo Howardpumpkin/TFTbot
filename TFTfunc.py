@@ -49,7 +49,7 @@ def getKey(keyword): #從Keys文件讀取金鑰或token
 
 rClient = RiotAPI(getKey("APIKey"))
 
-def getAllPlayerHistory(puuid): #取當前對戰中每名玩家前五場對戰id 返回玩家名單,玩家puuid,玩家歷史matchid
+def getAllPlayerHistory(puuid,start=0,count=5): #取當前對戰中每名玩家前五場對戰id 返回玩家名單,玩家puuid,玩家歷史matchid
     matchData = rClient.getTFTMatch(rClient.getTFTMatchid(puuid,0,1)[0])
     pData = matchData.get("info").get("participants")
     playersPuuid = []
@@ -59,7 +59,7 @@ def getAllPlayerHistory(puuid): #取當前對戰中每名玩家前五場對戰id
         playersPuuid.append(participant["puuid"])
         playersName.append(participant["riotIdGameName"])
     for puuid in playersPuuid: #根據每名玩家puuid取得matchid
-        allMatchid.append(rClient.getTFTMatchid(puuid,0,5))
+        allMatchid.append(rClient.getTFTMatchid(puuid,start,count))
     return playersPuuid,playersName,allMatchid
 
 def getTraits(playersPuuid,allMatchid): #取出所有玩家前五場遊玩的羈絆
@@ -100,9 +100,9 @@ def countPlayersTraits(playersTraits): #計算所有玩家的各羈絆遊玩次�
             morePlayed[player] = duplicates
     return morePlayed
 
-def getMorePlayedTraits(gameName,tagLine): #最終function讓discordbot直接獲得玩家玩比較多的羈絆資料
+def getMorePlayedTraits(gameName,tagLine,start=0,count=5): #最終function讓discordbot直接獲得玩家玩比較多的羈絆資料
     puuid = rClient.getPuuid(gameName,tagLine)
-    playersPuuid,playersName,allMatchid = getAllPlayerHistory(puuid)
+    playersPuuid,playersName,allMatchid = getAllPlayerHistory(puuid,start,count)
     allTraits = getTraits(playersPuuid,allMatchid)
     playersTraits = organizeTraits(playersName,allTraits)
     morePlayed = countPlayersTraits(playersTraits)
